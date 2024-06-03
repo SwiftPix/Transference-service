@@ -6,6 +6,7 @@ from database.models import PixKey, Transaction
 from utils.exceptions import BalanceInsuficient, BalanceNotFound, KeyAlreadyExistsException, KeyNotFound, TransactionNotFound, UserNotFound, UserServiceError
 from settings import settings
 from controllers.mock_tax import currencies, taxes
+from utils.index import transaction_to_payload
 
 class TransferenceController:
     @staticmethod
@@ -107,7 +108,12 @@ class TransferenceController:
 
         transaction = Transaction.find_by_id(transaction_id)
 
-        transaction["_id"] = str(transaction["_id"])
+        receiver_user = TransferenceController.get_user_by_id(receiver_user_id)
+
+        sender_user = TransferenceController.get_user_by_id(sender_id)
+
+        transaction = transaction_to_payload(transaction, sender_user, receiver_user)
+        
         return transaction
     
     @staticmethod
@@ -164,6 +170,17 @@ class TransferenceController:
         response = response.json()
         if not response:
             raise BalanceNotFound("Saldo indisponível")
+        return response
+    
+    @staticmethod
+    def get_user_by_id(user_id):
+        url = f"{settings.USER_API}/user/{user_id}"
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise UserServiceError("Serviço de usuário indisponível")
+        response = response.json()
+        if not response:
+            raise UserNotFound("Usuário não encontrado")
         return response
     
     @staticmethod
