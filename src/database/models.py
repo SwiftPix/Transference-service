@@ -33,7 +33,43 @@ class PixKey:
         return result
     
     def find_by_id(key_id):
-        result = db.users.find({"_id": ObjectId(key_id)})
+        result = db.keys.find({"_id": ObjectId(key_id)})
         key = next(result, None)
         return key
     
+    def find_by_key(key):
+        result = db.keys.find({"key": key})
+        key = next(result, None)
+        return key
+
+class Transaction:
+    def __init__(self, sender_id, receiver_key, currency, value):
+        self.sender_id = sender_id
+        self.receiver_key = receiver_key
+        self.currency = currency
+        self.value = value
+
+    def save(self):
+        transaction = {
+            "sender_id": self.sender_id,
+            "receiver_key": self.receiver_key,
+            "currency": self.currency,
+            "value": self.value,
+            "created_at": default_datetime(),
+            "updated_at": default_datetime(),
+        }
+        result = db.transactions.insert_one(transaction)
+        return result.inserted_id
+    
+    def find():
+        result = db.transactions.find({})
+        return result
+    
+    def find_by_id(transaction_id):
+        result = db.transactions.find({"_id": ObjectId(transaction_id)})
+        transaction = next(result, None)
+        return transaction
+    
+    def find_by_user_id(user_id):
+        result = db.transactions.find({"sender_id": user_id})
+        return result
