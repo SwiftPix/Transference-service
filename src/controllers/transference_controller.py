@@ -36,6 +36,8 @@ class TransferenceController:
     @staticmethod
     def get_user_keys(user_id):
         keys = PixKey.find_by_user_id(user_id)
+        if not keys:
+            raise KeyNotFound("Chave não encontrada")
         keys = list(keys)
         for key in keys:
             key["_id"] = str(key["_id"])
