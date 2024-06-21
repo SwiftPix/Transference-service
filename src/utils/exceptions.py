@@ -18,3 +18,12 @@ class BalanceInsuficient(Exception):
 
 class UserServiceError(Exception):
     pass
+
+class GeoLocServiceError(Exception):
+    pass
+
+class TaxNotFound(Exception):
+    pass
+
+class ConversionNotFound(Exception):
+    pass

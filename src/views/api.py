@@ -88,15 +88,3 @@ def get_transaction_by_id(transaction_id):
         return jsonify({"status": 404, "message": str(e)}), 404
     except Exception as e:
         return jsonify({"status": 400, "message": str(e)}), 400
-    
-@bp.route("/convert", methods=["POST"])
-def get_converted_balance():
-    try:
-        payload = request.get_json()
-        validated_balance = ConvertBalanceSchema().load(payload)
-        converted_balance = TransferenceController.get_tax_balance(validated_balance)
-        return {"result": converted_balance}
-    except ValidationError as e:
-        return jsonify({"status": 422, "message": str(e)}), 422
-    except Exception as e:
-        return jsonify({"status": 400, "message": str(e)}), 400

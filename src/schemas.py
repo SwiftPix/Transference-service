@@ -9,7 +9,7 @@ class PixKeySchema(Schema):
 class TransactionSchema(Schema):
     sender_id = fields.Str(required=True, error_messages={"required": "O usuário é obrigatório"})
     receiver_key = fields.Str(required=True, error_messages={"required": "O receptor é obrigatório"})
-    currency = fields.Str(required=True, error_messages={"required": "A moeda é obrigatória"})
+    currency = fields.Str(required=True, error_messages={"required": "A moeda desejada é obrigatória"})
     value = fields.Float(required=True, error_messages={"required": "O valor a ser transferido é obrigatório"})
 
 class ConvertBalanceSchema(Schema):
