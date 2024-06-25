@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from schemas import ConvertBalanceSchema, PixKeySchema, TransactionSchema
+from schemas import PixKeySchema, TransactionSchema
 from controllers.transference_controller import TransferenceController
 from utils.exceptions import BalanceInsuficient, BalanceNotFound, KeyAlreadyExistsException, KeyNotFound, TransactionNotFound, UserNotFound, UserServiceError
 
@@ -29,7 +29,9 @@ def create_key():
 def get_user_keys(user_id):
     try:
         keys = TransferenceController.get_user_keys(user_id)
-        return {"result:": keys}
+        return {"result": keys}
+    except KeyNotFound as e:
+        return jsonify({"status": 404, "message": str(e)}), 404
     except Exception as e:
         return jsonify({"status": 400, "message": str(e)}), 400
     
@@ -60,11 +62,11 @@ def create_transference():
         validated_transference = TransactionSchema().load(payload)
         transaction = TransferenceController.transaction(validated_transference)
         return transaction
-    except UserNotFound as e:
+    except (UserNotFound, BalanceNotFound) as e:
         return jsonify({"status": 404, "message": str(e)}), 404
     except ValidationError as e:
         return jsonify({"status": 422, "message": str(e)}), 422
-    except (BalanceInsuficient, UserServiceError, BalanceNotFound, Exception) as e:
+    except (BalanceInsuficient, UserServiceError, Exception) as e:
         return jsonify({"status": 400, "message": str(e)}), 400
     
 @bp.route("/my_transferences/<user_id>", methods=["GET"])
@@ -84,17 +86,5 @@ def get_transaction_by_id(transaction_id):
         return transaction
     except TransactionNotFound as e:
         return jsonify({"status": 404, "message": str(e)}), 404
-    except Exception as e:
-        return jsonify({"status": 400, "message": str(e)}), 400
-    
-@bp.route("/convert", methods=["POST"])
-def get_converted_balance():
-    try:
-        payload = request.get_json()
-        validated_balance = ConvertBalanceSchema().load(payload)
-        converted_balance = TransferenceController.get_tax_balance(validated_balance)
-        return {"result": converted_balance}
-    except ValidationError as e:
-        return jsonify({"status": 422, "message": str(e)}), 422
     except Exception as e:
         return jsonify({"status": 400, "message": str(e)}), 400

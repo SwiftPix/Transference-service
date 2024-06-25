@@ -1,12 +1,15 @@
-import json
 import uuid
 
 import requests
 from database.models import PixKey, Transaction
-from utils.exceptions import BalanceInsuficient, BalanceNotFound, KeyAlreadyExistsException, KeyNotFound, TransactionNotFound, UserNotFound, UserServiceError
+from utils.exceptions import BalanceInsuficient, BalanceNotFound, ConversionNotFound, GeoLocServiceError, KeyAlreadyExistsException, KeyNotFound, TaxNotFound, TransactionNotFound, UserNotFound, UserServiceError
 from settings import settings
-from controllers.mock_tax import currencies, taxes
 from utils.index import transaction_to_payload
+
+
+headers = {
+    "Content-Type": "application/json"
+}
 
 class TransferenceController:
     @staticmethod
@@ -36,6 +39,8 @@ class TransferenceController:
     @staticmethod
     def get_user_keys(user_id):
         keys = PixKey.find_by_user_id(user_id)
+        if not keys:
+            raise KeyNotFound("Chave não encontrada")
         keys = list(keys)
         for key in keys:
             key["_id"] = str(key["_id"])
@@ -79,13 +84,13 @@ class TransferenceController:
             sended_value_to_receiver = sended_value
             sended_value_to_sender = sended_value
         elif receiver_user_currency == sender_user_currency and transference_currency != sender_user_currency:
-            tax = TransferenceController.get_tax(sender_user_currency, transference_currency)
-            sended_value_to_receiver = sended_value * tax
-            sended_value_to_sender = sended_value * tax
+            conversion = TransferenceController.get_conversion(transference_currency, sender_user_currency, sended_value)
+            sended_value_to_receiver = conversion["result"]
+            sended_value_to_sender = conversion["result"]
         elif transference_currency == receiver_user_currency:
-            tax = TransferenceController.get_tax(sender_user_currency, receiver_user_currency)
+            conversion = TransferenceController.get_conversion(transference_currency, sender_user_currency, sended_value)
             sended_value_to_receiver = sended_value
-            sended_value_to_sender = sended_value * tax
+            sended_value_to_sender = conversion["result"]
 
         new_sender_user_balance = sender_user_balance["balance"] - sended_value_to_sender
 
@@ -97,20 +102,33 @@ class TransferenceController:
         TransferenceController.updated_balance(receiver_user_id, new_receiver_balance)
         TransferenceController.updated_balance(sender_id, new_sender_user_balance)
 
-        new_transaction = Transaction(
-            sender_id = sender_id,
-            receiver_key = receiver_user_key,
-            currency = transference_currency,
-            value = sended_value
-        )
-
-        transaction_id = new_transaction.save()
-
-        transaction = Transaction.find_by_id(transaction_id)
-
         receiver_user = TransferenceController.get_user_by_id(receiver_user_id)
 
         sender_user = TransferenceController.get_user_by_id(sender_id)
+
+        new_transaction = Transaction(
+            user_id = sender_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "sended"
+        )
+
+        new_transaction_to_receiver = Transaction(
+            user_id = receiver_user_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "received"
+        )
+
+        transaction_id = new_transaction.save()
+        
+        new_transaction_to_receiver.save()
+
+        transaction = Transaction.find_by_id(transaction_id)
 
         transaction = transaction_to_payload(transaction, sender_user, receiver_user)
         
@@ -137,14 +155,6 @@ class TransferenceController:
         return transaction
     
     @staticmethod
-    def get_tax_balance(balance_to_convert):
-        
-        tax = TransferenceController.get_tax(balance_to_convert["currency"], balance_to_convert["wanted_currency"])
-        converted_value = balance_to_convert["value"] * tax
-
-        return converted_value
-    
-    @staticmethod
     def get_user_balance(user_id):
         url = f"{settings.USER_API}/balance/{user_id}"
         response = requests.get(url)
@@ -160,9 +170,6 @@ class TransferenceController:
         url = f"{settings.USER_API}/balance/{user_id}"
         payload = {
             "balance": balance
-        }
-        headers = {
-            "Content-Type": "application/json"
         }
         response = requests.patch(url, json=payload, headers=headers)
         if response.status_code != 200:
@@ -184,20 +191,33 @@ class TransferenceController:
         return response
     
     @staticmethod
-    def get_tax(receiver_currency, sender_currency):
-        # url = f"{settings.GEOLOC_API}/get_tax"
-        # payload = {
-        #     "receiver_currency": receiver_currency,
-        #     "sender_currency": sender_currency
-        # }
-        # response = requests.post(url, payload)
-        # if response.status_code != 200:
-        #     raise GeoLocServiceError("Serviço de geolocalização indisponível")
-        # response = response.json()
-        # if not response:
-        #     raise TaxNotFound("Taxa de conversão não encontrada")
-        # return response
-        if receiver_currency == currencies[0] and sender_currency == currencies[1]:
-            return taxes[1]
-        if receiver_currency == currencies[1] and sender_currency == currencies[0]:
-            return taxes[0]
+    def get_tax(latitude, longitude, sender_currency):
+        url = f"{settings.GEOLOC_API}/tax_coords"
+        payload = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "sender_currency": sender_currency
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise GeoLocServiceError("Serviço de geolocalização indisponível")
+        response = response.json()
+        if not response:
+            raise TaxNotFound("Taxa de conversão não encontrada")
+        return response
+    
+    @staticmethod
+    def get_conversion(sender_currency, receiver_currency, value):
+        url = f"{settings.GEOLOC_API}/conversion"
+        payload = {
+            "sender_currency": sender_currency,
+            "receiver_currency": receiver_currency,
+            "value": value
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise GeoLocServiceError("Serviço de geolocalização indisponível")
+        response = response.json()
+        if not response:
+            raise ConversionNotFound("Conversão não encontrada")
+        return response
