@@ -43,18 +43,22 @@ class PixKey:
         return key
 
 class Transaction:
-    def __init__(self, sender_id, receiver_key, currency, value):
-        self.sender_id = sender_id
+    def __init__(self, user_id, sender ,receiver_key, currency, value, type):
+        self.user_id = user_id
+        self.sender = sender
         self.receiver_key = receiver_key
         self.currency = currency
         self.value = value
+        self.type = type
 
     def save(self):
         transaction = {
-            "sender_id": self.sender_id,
+            "user_id": self.user_id,
+            "sender": self.sender,
             "receiver_key": self.receiver_key,
             "currency": self.currency,
             "value": self.value,
+            "type": self.type,
             "created_at": default_datetime(),
             "updated_at": default_datetime(),
         }
@@ -71,5 +75,5 @@ class Transaction:
         return transaction
     
     def find_by_user_id(user_id):
-        result = db.transactions.find({"sender_id": user_id})
+        result = db.transactions.find({"user_id": user_id})
         return result

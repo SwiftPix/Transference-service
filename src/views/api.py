@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from schemas import ConvertBalanceSchema, PixKeySchema, TransactionSchema
+from schemas import PixKeySchema, TransactionSchema
 from controllers.transference_controller import TransferenceController
 from utils.exceptions import BalanceInsuficient, BalanceNotFound, KeyAlreadyExistsException, KeyNotFound, TransactionNotFound, UserNotFound, UserServiceError
 

@@ -6,6 +6,11 @@ from utils.exceptions import BalanceInsuficient, BalanceNotFound, ConversionNotF
 from settings import settings
 from utils.index import transaction_to_payload
 
+
+headers = {
+    "Content-Type": "application/json"
+}
+
 class TransferenceController:
     @staticmethod
     def create_key(key):
@@ -79,11 +84,11 @@ class TransferenceController:
             sended_value_to_receiver = sended_value
             sended_value_to_sender = sended_value
         elif receiver_user_currency == sender_user_currency and transference_currency != sender_user_currency:
-            conversion = TransferenceController.get_conversion(sender_user_currency, transference_currency, sended_value)
+            conversion = TransferenceController.get_conversion(transference_currency, sender_user_currency, sended_value)
             sended_value_to_receiver = conversion["result"]
             sended_value_to_sender = conversion["result"]
         elif transference_currency == receiver_user_currency:
-            conversion = TransferenceController.get_conversion(sender_user_currency, transference_currency, sended_value)
+            conversion = TransferenceController.get_conversion(transference_currency, sender_user_currency, sended_value)
             sended_value_to_receiver = sended_value
             sended_value_to_sender = conversion["result"]
 
@@ -97,20 +102,33 @@ class TransferenceController:
         TransferenceController.updated_balance(receiver_user_id, new_receiver_balance)
         TransferenceController.updated_balance(sender_id, new_sender_user_balance)
 
-        new_transaction = Transaction(
-            sender_id = sender_id,
-            receiver_key = receiver_user_key,
-            currency = transference_currency,
-            value = sended_value
-        )
-
-        transaction_id = new_transaction.save()
-
-        transaction = Transaction.find_by_id(transaction_id)
-
         receiver_user = TransferenceController.get_user_by_id(receiver_user_id)
 
         sender_user = TransferenceController.get_user_by_id(sender_id)
+
+        new_transaction = Transaction(
+            user_id = sender_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "sended"
+        )
+
+        new_transaction_to_receiver = Transaction(
+            user_id = receiver_user_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "received"
+        )
+
+        transaction_id = new_transaction.save()
+        
+        new_transaction_to_receiver.save()
+
+        transaction = Transaction.find_by_id(transaction_id)
 
         transaction = transaction_to_payload(transaction, sender_user, receiver_user)
         
@@ -153,9 +171,6 @@ class TransferenceController:
         payload = {
             "balance": balance
         }
-        headers = {
-            "Content-Type": "application/json"
-        }
         response = requests.patch(url, json=payload, headers=headers)
         if response.status_code != 200:
             raise UserServiceError("Serviço de usuário indisponível")
@@ -183,7 +198,7 @@ class TransferenceController:
             "longitude": longitude,
             "sender_currency": sender_currency
         }
-        response = requests.post(url, payload)
+        response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             raise GeoLocServiceError("Serviço de geolocalização indisponível")
         response = response.json()
@@ -199,7 +214,7 @@ class TransferenceController:
             "receiver_currency": receiver_currency,
             "value": value
         }
-        response = requests.post(url, payload)
+        response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             raise GeoLocServiceError("Serviço de geolocalização indisponível")
         response = response.json()
