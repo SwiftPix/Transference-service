@@ -1,83 +1,79 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import uuid
+
+import requests
 from database.models import PixKey, Transaction
-from utils.exceptions import (BalanceInsuficient, BalanceNotFound, ConversionNotFound, 
-                              GeoLocServiceError, KeyAlreadyExistsException, KeyNotFound, 
-                              TaxNotFound, TransactionNotFound, UserNotFound, UserServiceError)
+from utils.exceptions import BalanceInsuficient, BalanceNotFound, ConversionNotFound, GeoLocServiceError, KeyAlreadyExistsException, KeyNotFound, TaxNotFound, TransactionNotFound, UserNotFound, UserServiceError
 from settings import settings
 from utils.index import transaction_to_payload
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  
 
 headers = {
     "Content-Type": "application/json"
 }
 
-@app.route('/create_key', methods=['POST'])
-def create_key():
-    key = request.json
-    type = key.get("type")
-    pix_key = key.get("key")
+class TransferenceController:
+    @staticmethod
+    def create_key(key):
+        type = key.get("type")
+        pix_key = key.get("key")
 
-    keys = PixKey.find()
+        keys = PixKey.find()
 
-    if type == "aleatoria":
-        key["key"] = str(uuid.uuid4())
+        if type == "aleatoria":
+            key["key"] = str(uuid.uuid4())
 
-    for existent_key in keys:
-        if existent_key.get("type") == type and existent_key.get("key") == pix_key:
-            return jsonify({"error": "Chave já está em uso"}), 400
+        for existent_key in keys:
+            if existent_key.get("type") == type and existent_key.get("key") == pix_key:
+                raise KeyAlreadyExistsException("Chave já está em uso")
 
-    new_key = PixKey(
-        type=type,
-        key=key.get("key"),
-        user_id=key.get("user_id")
-    )
+        new_key = PixKey(
+            type=type,
+            key=key.get("key"),
+            user_id=key.get("user_id")
+        )
 
-    key_id = new_key.save()
+        key_id = new_key.save()
 
-    return jsonify({"key_id": key_id})
+        return key_id
 
-@app.route('/get_user_keys/<user_id>', methods=['GET'])
-def get_user_keys(user_id):
-    keys = PixKey.find_by_user_id(user_id)
-    if not keys:
-        return jsonify({"error": "Chave não encontrada"}), 404
-    keys = list(keys)
-    for key in keys:
+    @staticmethod
+    def get_user_keys(user_id):
+        keys = PixKey.find_by_user_id(user_id)
+        if not keys:
+            raise KeyNotFound("Chave não encontrada")
+        keys = list(keys)
+        for key in keys:
+            key["_id"] = str(key["_id"])
+        return keys
+    
+    @staticmethod
+    def get_key_by_id(key_id):
+        key = PixKey.find_by_id(key_id)
+
+        if not key:
+            raise KeyNotFound("Chave não encontrada")
         key["_id"] = str(key["_id"])
-    return jsonify(keys)
+        return key
+    
+    @staticmethod
+    def get_user_by_key(key):
+        user = PixKey.find_by_key(key)
+        if not user:
+            raise UserNotFound(f"Usuário não encontrado para chave {key}")
+        user["_id"] = str(user["_id"])
+        return user
+    
+    @staticmethod
+    def transaction(transference):
 
-@app.route('/get_key_by_id/<key_id>', methods=['GET'])
-def get_key_by_id(key_id):
-    key = PixKey.find_by_id(key_id)
-    if not key:
-        return jsonify({"error": "Chave não encontrada"}), 404
-    key["_id"] = str(key["_id"])
-    return jsonify(key)
+        receiver_user_key = transference.get("receiver_key")
+        sender_id = transference.get("sender_id")
+        sended_value = transference.get("value")
+        transference_currency = transference.get("currency")
 
-@app.route('/get_user_by_key', methods=['POST'])
-def get_user_by_key():
-    key = request.json.get("key")
-    user = PixKey.find_by_key(key)
-    if not user:
-        return jsonify({"error": f"Usuário não encontrado para chave {key}"}), 404
-    user["_id"] = str(user["_id"])
-    return jsonify(user)
-
-@app.route('/transaction', methods=['POST'])
-def transaction():
-    transference = request.json
-    receiver_user_key = transference.get("receiver_key")
-    sender_id = transference.get("sender_id")
-    sended_value = transference.get("value")
-    transference_currency = transference.get("currency")
-
-    try:
         receiver_user = TransferenceController.get_user_by_key(receiver_user_key)
         receiver_user_id = receiver_user.get("user_id")
+
         receiver_user_balance = TransferenceController.get_user_balance(receiver_user_id)
         sender_user_balance = TransferenceController.get_user_balance(sender_id)
 
@@ -107,131 +103,121 @@ def transaction():
         TransferenceController.updated_balance(sender_id, new_sender_user_balance)
 
         receiver_user = TransferenceController.get_user_by_id(receiver_user_id)
+
         sender_user = TransferenceController.get_user_by_id(sender_id)
 
         new_transaction = Transaction(
-            user_id=sender_id,
-            receiver_key=receiver_user_key,
-            sender=sender_user.get("name"),
-            currency=transference_currency,
-            value=sended_value,
-            type="sended"
+            user_id = sender_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "sended"
         )
 
         new_transaction_to_receiver = Transaction(
-            user_id=receiver_user_id,
-            receiver_key=receiver_user_key,
-            sender=sender_user.get("name"),
-            currency=transference_currency,
-            value=sended_value,
-            type="received"
+            user_id = receiver_user_id,
+            receiver_key = receiver_user_key,
+            sender = sender_user.get("name"),
+            currency = transference_currency,
+            value = sended_value,
+            type = "received"
         )
 
         transaction_id = new_transaction.save()
+        
         new_transaction_to_receiver.save()
 
         transaction = Transaction.find_by_id(transaction_id)
+
         transaction = transaction_to_payload(transaction, sender_user, receiver_user)
+        
+        return transaction
+    
+    @staticmethod
+    def get_user_transactions(user_id):
+        transactions = Transaction.find_by_user_id(user_id)
+        transactions = list(transactions)
 
-        return jsonify(transaction)
+        if not transactions:
+            raise TransactionNotFound("Sem nenhuma transação realizada")
+        for transaction in transactions:
+            transaction["_id"] = str(transaction["_id"])
+        return transactions
+    
+    @staticmethod
+    def get_transaction_by_id(transaction_id):
+        transaction = Transaction.find_by_id(transaction_id)
 
-    except UserNotFound as e:
-        return jsonify({"error": str(e)}), 404
-    except (BalanceInsuficient, BalanceNotFound, ConversionNotFound, GeoLocServiceError, TaxNotFound, TransactionNotFound, UserServiceError) as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/get_user_transactions/<user_id>', methods=['GET'])
-def get_user_transactions(user_id):
-    transactions = Transaction.find_by_user_id(user_id)
-    if not transactions:
-        return jsonify({"error": "Sem nenhuma transação realizada"}), 404
-    transactions = list(transactions)
-    for transaction in transactions:
+        if not transaction:
+            raise TransactionNotFound("Sem nenhuma transação realizada")
         transaction["_id"] = str(transaction["_id"])
-    return jsonify(transactions)
-
-@app.route('/get_transaction_by_id/<transaction_id>', methods=['GET'])
-def get_transaction_by_id(transaction_id):
-    transaction = Transaction.find_by_id(transaction_id)
-    if not transaction:
-        return jsonify({"error": "Sem nenhuma transação realizada"}), 404
-    transaction["_id"] = str(transaction["_id"])
-    return jsonify(transaction)
-
-@app.route('/get_user_balance/<user_id>', methods=['GET'])
-def get_user_balance(user_id):
-    url = f"{settings.USER_API}/balance/{user_id}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        return jsonify({"error": "Serviço de usuário indisponível"}), 503
-    response = response.json()
-    if not response:
-        return jsonify({"error": "Saldo indisponível"}), 404
-    return jsonify(response)
-
-@app.route('/updated_balance/<user_id>', methods=['PATCH'])
-def updated_balance(user_id):
-    balance = request.json.get("balance")
-    url = f"{settings.USER_API}/balance/{user_id}"
-    payload = {
-        "balance": balance
-    }
-    response = requests.patch(url, json=payload, headers=headers)
-    if response.status_code != 200:
-        return jsonify({"error": "Serviço de usuário indisponível"}), 503
-    response = response.json()
-    if not response:
-        return jsonify({"error": "Saldo indisponível"}), 404
-    return jsonify(response)
-
-@app.route('/get_user_by_id/<user_id>', methods=['GET'])
-def get_user_by_id(user_id):
-    url = f"{settings.USER_API}/user/{user_id}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        return jsonify({"error": "Serviço de usuário indisponível"}), 503
-    response = response.json()
-    if not response:
-        return jsonify({"error": "Usuário não encontrado"}), 404
-    return jsonify(response)
-
-@app.route('/get_tax', methods=['POST'])
-def get_tax():
-    latitude = request.json.get("latitude")
-    longitude = request.json.get("longitude")
-    sender_currency = request.json.get("sender_currency")
-    url = f"{settings.GEOLOC_API}/tax_coords"
-    payload = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "sender_currency": sender_currency
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code != 200:
-        return jsonify({"error": "Serviço de geolocalização indisponível"}), 503
-    response = response.json()
-    if not response:
-        return jsonify({"error": "Taxa de conversão não encontrada"}), 404
-    return jsonify(response)
-
-@app.route('/get_conversion', methods=['POST'])
-def get_conversion():
-    sender_currency = request.json.get("sender_currency")
-    receiver_currency = request.json.get("receiver_currency")
-    value = request.json.get("value")
-    url = f"{settings.GEOLOC_API}/conversion"
-    payload = {
-        "sender_currency": sender_currency,
-        "receiver_currency": receiver_currency,
-        "value": value
-    }
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code != 200:
-        return jsonify({"error": "Serviço de geolocalização indisponível"}), 503
-    response = response.json()
-    if not response:
-        return jsonify({"error": "Conversão não encontrada"}), 404
-    return jsonify(response)
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+        return transaction
+    
+    @staticmethod
+    def get_user_balance(user_id):
+        url = f"{settings.USER_API}/balance/{user_id}"
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise UserServiceError("Serviço de usuário indisponível")
+        response = response.json()
+        if not response:
+            raise BalanceNotFound("Saldo indisponível")
+        return response
+    
+    @staticmethod
+    def updated_balance(user_id, balance):
+        url = f"{settings.USER_API}/balance/{user_id}"
+        payload = {
+            "balance": balance
+        }
+        response = requests.patch(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise UserServiceError("Serviço de usuário indisponível")
+        response = response.json()
+        if not response:
+            raise BalanceNotFound("Saldo indisponível")
+        return response
+    
+    @staticmethod
+    def get_user_by_id(user_id):
+        url = f"{settings.USER_API}/user/{user_id}"
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise UserServiceError("Serviço de usuário indisponível")
+        response = response.json()
+        if not response:
+            raise UserNotFound("Usuário não encontrado")
+        return response
+    
+    @staticmethod
+    def get_tax(latitude, longitude, sender_currency):
+        url = f"{settings.GEOLOC_API}/tax_coords"
+        payload = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "sender_currency": sender_currency
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise GeoLocServiceError("Serviço de geolocalização indisponível")
+        response = response.json()
+        if not response:
+            raise TaxNotFound("Taxa de conversão não encontrada")
+        return response
+    
+    @staticmethod
+    def get_conversion(sender_currency, receiver_currency, value):
+        url = f"{settings.GEOLOC_API}/conversion"
+        payload = {
+            "sender_currency": sender_currency,
+            "receiver_currency": receiver_currency,
+            "value": value
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise GeoLocServiceError("Serviço de geolocalização indisponível")
+        response = response.json()
+        if not response:
+            raise ConversionNotFound("Conversão não encontrada")
+        return response
