@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import requests
@@ -6,6 +7,8 @@ from utils.exceptions import BalanceInsuficient, BalanceNotFound, ConversionNotF
 from settings import settings
 from utils.index import transaction_to_payload
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 headers = {
     "Content-Type": "application/json"
@@ -158,7 +161,9 @@ class TransferenceController:
     def get_user_balance(user_id):
         url = f"{settings.USER_API}/balance/{user_id}"
         response = requests.get(url)
+        logger.info(f"Resposta do servidor de usuário: {response.status_code}")
         if response.status_code != 200:
+            logger.error(f"Erro no servidor de usuário: {response.text}")
             raise UserServiceError("Serviço de usuário indisponível")
         response = response.json()
         if not response:
@@ -172,7 +177,9 @@ class TransferenceController:
             "balance": balance
         }
         response = requests.patch(url, json=payload, headers=headers)
+        logger.info(f"Resposta do servidor de usuário: {response.status_code}")
         if response.status_code != 200:
+            logger.error(f"Erro no servidor de usuário: {response.text}")
             raise UserServiceError("Serviço de usuário indisponível")
         response = response.json()
         if not response:
@@ -183,7 +190,9 @@ class TransferenceController:
     def get_user_by_id(user_id):
         url = f"{settings.USER_API}/user/{user_id}"
         response = requests.get(url)
+        logger.info(f"Resposta do servidor de usuário: {response.status_code}")
         if response.status_code != 200:
+            logger.error(f"Erro no servidor de usuário: {response.text}")
             raise UserServiceError("Serviço de usuário indisponível")
         response = response.json()
         if not response:
@@ -199,7 +208,9 @@ class TransferenceController:
             "sender_currency": sender_currency
         }
         response = requests.post(url, json=payload, headers=headers)
+        logger.info(f"Resposta do servidor de geolocalização: {response.status_code}")
         if response.status_code != 200:
+            logger.error(f"Erro no servidor de geolocalização: {response.text}")
             raise GeoLocServiceError("Serviço de geolocalização indisponível")
         response = response.json()
         if not response:
@@ -215,7 +226,9 @@ class TransferenceController:
             "value": value
         }
         response = requests.post(url, json=payload, headers=headers)
+        logger.info(f"Resposta do servidor de geolocalização: {response.status_code}")
         if response.status_code != 200:
+            logger.error(f"Erro no servidor de geolocalização: {response.text}")
             raise GeoLocServiceError("Serviço de geolocalização indisponível")
         response = response.json()
         if not response:
