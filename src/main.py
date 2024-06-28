@@ -6,7 +6,7 @@ from settings import settings
 def create_app():
     app = Flask(__name__)
     
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     app.config.from_object(settings)
     app.register_blueprint(views_bp)
