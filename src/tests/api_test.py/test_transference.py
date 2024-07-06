@@ -4,7 +4,13 @@ import json
 import re
 
 from database.models import PixKey, Transaction
-from tests.payloads import payload_create_key, payload_transaction_other_currency, payload_transaction, response_transaction, response_get_key
+from tests.payloads import (
+    payload_create_key,
+    payload_transaction_other_currency,
+    payload_transaction,
+    response_transaction,
+    response_get_key
+)
 from utils.exceptions import BalanceNotFound, UserServiceError
 
 
