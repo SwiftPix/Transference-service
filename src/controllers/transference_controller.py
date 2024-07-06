@@ -43,9 +43,9 @@ class TransferenceController:
     @staticmethod
     def get_user_keys(user_id):
         keys = PixKey.find_by_user_id(user_id)
+        keys = list(keys)
         if not keys:
             raise KeyNotFound("Chave não encontrada")
-        keys = list(keys)
         for key in keys:
             key["_id"] = str(key["_id"])
         return keys
@@ -137,8 +137,8 @@ class TransferenceController:
             sender_number = sender_user.get("cellphone")
             message_receiver = f"Transferência recebida! No valor de {sended_value_to_receiver}."
             message_sender = f"Transferência realizada! No valor de {sended_value_to_sender} para {receiver_user_key}."
-            # PushController().send_sms(receiver_number, message_receiver)
-            # PushController().send_sms(sender_number, message_sender)
+            PushController().send_sms(receiver_number, message_receiver)
+            PushController().send_sms(sender_number, message_sender)
         except Exception as e:
             logger.error(f"Não foi possível enviar mensagem. {e}")
 

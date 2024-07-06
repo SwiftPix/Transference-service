@@ -1,24 +1,25 @@
 payload_create_key = {
     "type": "telefone",
-    "key": "99998888", 
+    "key": "11999888156", 
     "user_id": "665e0069183ce834954a2f44"
-}
-
-payload_convert = {
-    "wanted_currency": "dolar americano",
-    "currency": "real",
-    "value": 15.0
 }
 
 payload_transaction = {
     "sender_id": "665dff9c183ce834954a2f42",
-    "receiver_key": "99998888",
-    "currency": "real",
+    "receiver_key": "11999888156",
+    "currency": "BRL",
+    "value": 15.0
+}
+
+payload_transaction_other_currency = {
+    "sender_id": "665dff9c183ce834954a2f42",
+    "receiver_key": "11999888156",
+    "currency": "USD",
     "value": 15.0
 }
 
 response_transaction = {
-    "currency": "real",
+    "currency": "BRL",
     "date": "Mon, 01 Jan 2024 03:00:00 GMT",
     "from": {
         "account": "000",
@@ -36,14 +37,14 @@ response_transaction = {
         "institution": "001",
         "name": "Teste2"
     },
-    "value": 5.0
+    "value": 15.0
 }
 
 response_get_key = {
     "result": [
         {
             "created_at": "Mon, 01 Jan 2024 03:00:00 GMT",
-            "key": "99998888",
+            "key": "11999888156",
             "type": "telefone",
             "updated_at": "Mon, 01 Jan 2024 03:00:00 GMT",
             "user_id": "665e0069183ce834954a2f44"
