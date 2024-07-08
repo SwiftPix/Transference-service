@@ -2,6 +2,7 @@ import logging
 import uuid
 
 import requests
+from controllers.push_controller import PushController
 from database.models import PixKey, Transaction
 from utils.exceptions import BalanceInsuficient, BalanceNotFound, ConversionNotFound, GeoLocServiceError, KeyAlreadyExistsException, KeyNotFound, TaxNotFound, TransactionNotFound, UserNotFound, UserServiceError
 from settings import settings
@@ -42,9 +43,9 @@ class TransferenceController:
     @staticmethod
     def get_user_keys(user_id):
         keys = PixKey.find_by_user_id(user_id)
+        keys = list(keys)
         if not keys:
             raise KeyNotFound("Chave não encontrada")
-        keys = list(keys)
         for key in keys:
             key["_id"] = str(key["_id"])
         return keys
@@ -114,7 +115,7 @@ class TransferenceController:
             receiver_key = receiver_user_key,
             sender = sender_user.get("name"),
             currency = transference_currency,
-            value = sended_value,
+            value = sended_value_to_sender,
             type = "sended"
         )
 
@@ -123,13 +124,23 @@ class TransferenceController:
             receiver_key = receiver_user_key,
             sender = sender_user.get("name"),
             currency = transference_currency,
-            value = sended_value,
+            value = sended_value_to_receiver,
             type = "received"
         )
 
         transaction_id = new_transaction.save()
         
         new_transaction_to_receiver.save()
+
+        try:
+            receiver_number = receiver_user.get("cellphone")
+            sender_number = sender_user.get("cellphone")
+            message_receiver = f"Transferência recebida! No valor de {sended_value_to_receiver}."
+            message_sender = f"Transferência realizada! No valor de {sended_value_to_sender} para {receiver_user_key}."
+            PushController().send_sms(receiver_number, message_receiver)
+            PushController().send_sms(sender_number, message_sender)
+        except Exception as e:
+            logger.error(f"Não foi possível enviar mensagem. {e}")
 
         transaction = Transaction.find_by_id(transaction_id)
 
