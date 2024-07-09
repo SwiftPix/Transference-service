@@ -115,7 +115,7 @@ class TransferenceController:
             receiver_key = receiver_user_key,
             sender = sender_user.get("name"),
             currency = transference_currency,
-            value = sended_value_to_sender,
+            value = sended_value,
             type = "sended"
         )
 
@@ -124,7 +124,7 @@ class TransferenceController:
             receiver_key = receiver_user_key,
             sender = sender_user.get("name"),
             currency = transference_currency,
-            value = sended_value_to_receiver,
+            value = sended_value,
             type = "received"
         )
 

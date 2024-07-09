@@ -267,18 +267,15 @@ def test_create_transference_success_sender_n_desired_same_currency(
 
         data = json.loads(response.data)
 
-        conversion = mock_get_conversion.return_value["result"]
-
         transference_id = data["_id"]
         expected_response["_id"] = transference_id
-        expected_response["value"] = conversion
         expected_response["currency"] = "USD"
 
         transaction = Transaction.find_by_id(transference_id)
 
         assert response.status_code == 200
         assert response.json == expected_response
-        assert conversion == transaction["value"]
+        assert expected_response["value"] == transaction["value"]
         mock_get_conversion.assert_called_once()
         mock_get_key_by_user.assert_called_once()
         mock_get_user_balance.assert_called()
@@ -304,18 +301,15 @@ def test_create_transference_success_different_currency(
 
         data = json.loads(response.data)
 
-        conversion = mock_get_conversion.return_value["result"]
-
         transference_id = data["_id"]
         expected_response["_id"] = transference_id
-        expected_response["value"] = conversion
         expected_response["currency"] = "USD"
 
         transaction = Transaction.find_by_id(transference_id)
 
         assert response.status_code == 200
         assert response.json == expected_response
-        assert conversion == transaction["value"]
+        assert expected_response["value"] == transaction["value"]
         mock_get_conversion.assert_called_once()
         mock_get_key_by_user.assert_called_once()
         mock_get_user_balance.assert_called()
