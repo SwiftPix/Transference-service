@@ -272,7 +272,7 @@ def test_create_transference_success_sender_n_desired_same_currency(
         transference_id = data["_id"]
         expected_response["_id"] = transference_id
         expected_response["value"] = conversion
-        expected_response["currency"] = "USD"
+        expected_response["currency"] = "BRL"
 
         transaction = Transaction.find_by_id(transference_id)
 
@@ -309,7 +309,7 @@ def test_create_transference_success_different_currency(
         transference_id = data["_id"]
         expected_response["_id"] = transference_id
         expected_response["value"] = conversion
-        expected_response["currency"] = "USD"
+        expected_response["currency"] = "BRL"
 
         transaction = Transaction.find_by_id(transference_id)
 
