@@ -95,6 +95,10 @@ class TransferenceController:
             conversion = TransferenceController.get_conversion(transference_currency, sender_user_currency, sended_value)
             sended_value_to_receiver = sended_value
             sended_value_to_sender = conversion["result"]
+        elif transference_currency == sender_user_currency:
+            conversion = TransferenceController.get_conversion(transference_currency, receiver_user_currency, sended_value)
+            sended_value_to_receiver = conversion["result"]
+            sended_value_to_sender = sended_value
 
         new_sender_user_balance = sender_user_balance["balance"] - sended_value_to_sender
 
